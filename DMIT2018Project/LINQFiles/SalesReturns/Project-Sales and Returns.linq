@@ -22,20 +22,28 @@
 void Main()
 {
 
-	//Required Methods
+	//(Required) Methods
 	//GetCategories
-	TestGetCategories().Dump();     //maybe for onintialized?
+	TestGetCategories().Dump();     //maybe for onintialized? // for index page UI //
 
 
-	//GetItemsByCategoryID
-	TestGetItemsByCategoryID(-3).Dump();   //users or employees selecting certain category for display
-	TestGetItemsByCategoryID(0).Dump();   //users or employees selecting certain category for display
-	TestGetItemsByCategoryID(4).Dump();   //users or employees selecting certain category for display
+	//(Required)GetItemsByCategoryID
+	TestGetItemsByCategoryID(-3).Dump("invalid categoryid");   //users or employees selecting certain category for display
+	TestGetItemsByCategoryID(0).Dump("invalid categoryid");   //users or employees selecting certain category for display
+	TestGetItemsByCategoryID(4).Dump("Items of categoryID 4");   //users or employees selecting certain category for display
 
 
-	//SaveSales
-	//GetSaleRefund
-	//and SaveRefund
+	TestAddToShoppingLists(34).Dump();
+	TestAddToShoppingLists(35).Dump();
+	TestAddToShoppingLists(35).Dump("Duplicate Record Add Fail");
+	TestAddToShoppingLists(24).Dump("No such record in the database");
+
+
+	//(Required)SaveSales
+
+	//(Required)GetSaleRefund
+
+	//(Required)and SaveRefund
 
 
 
@@ -121,6 +129,41 @@ public List<StockItemView> TestGetItemsByCategoryID(int categoryID)
 
 }
 
+public List<StockItemView> TestAddToShoppingLists(int productID)
+{
+	try
+	{
+		return AddToShoppingLists(productID);
+	}
+
+	#region catch all exceptions (define later)
+
+	catch (AggregateException ex)
+	{
+		foreach (var error in ex.InnerExceptions)
+		{
+			error.Message.Dump();
+
+		}
+	}
+
+	catch (ArgumentNullException ex)
+	{
+		GetInnerException(ex).Message.Dump();
+	}
+
+	catch (Exception ex)
+	{
+		GetInnerException(ex).Message.Dump();
+	}
+
+	#endregion
+	return null; //Ensures a valid return value even on failure
+
+}
+
+
+
 #endregion
 
 // This region contains support methods for testing
@@ -144,15 +187,18 @@ public List<CategoryView> GetCategories()
 					.Where(x => x.RemoveFromViewFlag == false)
 					.Select(x => new CategoryView
 					{
-						CategoryID = x.CategoryID,
+						//CategoryID = x.CategoryID, //maybe not needed to show user
 						Description = x.Description,
-						ItemList = x.StockItems
-												.Where(x => x.Discontinued == false)
-												.Select(a => new StockItemView
-												{
-													StockItemID = a.StockItemID,
-													Description = a.Description
-												}).ToList()
+						NumberOfItems = x.StockItems.Where(a => a.Discontinued == false)
+													.Count()
+
+						//ItemList = x.StockItems
+						//						.Where(x => x.Discontinued == false)
+						//						.Select(a => new StockItemView
+						//						{
+						//							StockItemID = a.StockItemID,
+						//							Description = a.Description
+						//						}).ToList()
 
 					}).ToList();
 
@@ -176,6 +222,16 @@ public List<StockItemView> GetItemsByCategoryID(int categoryID)
 	{
 		throw new ArgumentException("Category ID is invalid(should be greater than 0)");
 	}
+
+	var matchingCategoryID = Categories
+									.Where(x => x.CategoryID == categoryID)
+									.FirstOrDefault();
+
+	if (matchingCategoryID == null) //maybe this is not needed because customers only click categoryname they can see on the webpage, but just in case.
+	{
+		throw new ArgumentException("There is no matching category in the database.");
+	}
+
 	#endregion
 
 	return StockItems
@@ -192,6 +248,48 @@ public List<StockItemView> GetItemsByCategoryID(int categoryID)
 }
 
 
+public List<StockItemView> AddToShoppingLists(int productID)
+{
+
+	if (productID == null)
+	{
+		throw new ArgumentNullException("Product ID should be supplied");
+	}
+
+	if (productID <= 0)
+	{
+		throw new ArgumentException("Product ID should be greater than 0");
+	}
+
+	var productInDatabase = StockItems.Where(x => x.StockItemID == productID).FirstOrDefault();
+
+	if (productInDatabase == null)
+	{
+		throw new ArgumentException("There is no such item in the database.");
+	}
+
+
+	var existingItems = shoppingListItems.Where(x => x.StockItemID == productID).FirstOrDefault();
+	if (existingItems != null)
+	{
+		throw new ArgumentException("Duplicate item is already in the cart!!");
+	}
+	else
+	{
+		shoppingListItems.Add(new StockItemView
+		{
+			StockItemID = productID,
+			Description = productInDatabase.Description,
+			SellingPrice = productInDatabase.SellingPrice
+		});
+	}
+	return shoppingListItems;
+
+}
+
+
+
+
 
 
 #endregion
@@ -202,28 +300,44 @@ public List<StockItemView> GetItemsByCategoryID(int categoryID)
 
 public class CategoryView
 {
-	public int CategoryID { get; set; }
+	//public int CategoryID { get; set; }
 	public string Description { get; set; }
-	public bool RemoveFromViewFlag { get; set; }
-	public List<StockItemView> ItemList { get; set; } = new();
-	public int CountOfList => ItemList.Count;
-
+	public int NumberOfItems { get; set; }
+	//public bool RemoveFromViewFlag { get; set; }
+	//public List<StockItemView> ItemList { get; set; } = new();
+	//public int CountOfList => ItemList.Count;
 }
+
+public class ShoppingItemsView
+{
+	public string ProductID { get; set; }
+	public string ProductName { get; set; }
+	public int Quantity { get; set; }
+	public decimal Unitrice { get; set; }
+}
+
+private List<StockItemView> shoppingListItems = new List<StockItemView>();
+//see category
+//select a category
+//see items
+//select certain item and add -> leads to shopping list
+
+
 
 public class StockItemView
 {
 	public int StockItemID { get; set; }
 	public string Description { get; set; }
 	public decimal SellingPrice { get; set; }
-	public decimal PurchasePrice { get; set; }
-	public int QuantityOnHand { get; set; }
-	public int QuantityOnOrder { get; set; }
-	public int ReOrderLevel { get; set; }
-	public bool Discontinued { get; set; }
-	public int VendorID { get; set; }
-	public string VendorStockNumber { get; set; }
-	public int CategoryID { get; set; }
-	public bool RemoveFromViewFlag { get; set; }
+	//public decimal PurchasePrice { get; set; }
+	//public int QuantityOnHand { get; set; }
+	//public int QuantityOnOrder { get; set; }
+	//public int ReOrderLevel { get; set; }
+	//public bool Discontinued { get; set; }
+	//public int VendorID { get; set; }
+	//public string VendorStockNumber { get; set; }
+	//public int CategoryID { get; set; }
+	//public bool RemoveFromViewFlag { get; set; }
 }
 
 
