@@ -34,9 +34,10 @@ void Main()
 
 
 	TestAddToShoppingLists(34).Dump();
-	TestAddToShoppingLists(35).Dump();
-	TestAddToShoppingLists(35).Dump("Duplicate Record Add Fail");
-	TestAddToShoppingLists(24).Dump("No such record in the database");
+	TestAddToShoppingLists(5580).Dump();
+	TestAddToShoppingLists(5580).Dump("Duplicate Item Quantity +1");
+	TestAddToShoppingLists(5580).Dump("can't order more than the quantity on hand"); //quantity on hand for id5580 is 2 in the database.
+	TestAddToShoppingLists(24).Dump("No such product in the database");
 
 
 	//(Required)SaveSales
@@ -129,7 +130,7 @@ public List<StockItemView> TestGetItemsByCategoryID(int categoryID)
 
 }
 
-public List<StockItemView> TestAddToShoppingLists(int productID)
+public List<ShoppingItemsView> TestAddToShoppingLists(int productID)
 {
 	try
 	{
@@ -248,7 +249,7 @@ public List<StockItemView> GetItemsByCategoryID(int categoryID)
 }
 
 
-public List<StockItemView> AddToShoppingLists(int productID)
+public List<ShoppingItemsView> AddToShoppingLists(int productID)
 {
 
 	if (productID == null)
@@ -269,24 +270,34 @@ public List<StockItemView> AddToShoppingLists(int productID)
 	}
 
 
-	var existingItems = shoppingListItems.Where(x => x.StockItemID == productID).FirstOrDefault();
+	var existingItems = shoppingListItems.Where(x => x.ProductID == productID).FirstOrDefault();
 	if (existingItems != null)
 	{
-		throw new ArgumentException("Duplicate item is already in the cart!!");
+		if (existingItems.Quantity == productInDatabase.QuantityOnHand)
+		{
+			throw new ArgumentException("You can't order more than the quantity on hand.");
+		}
+		
+		Console.WriteLine("Duplicate item is already in the cart! Quantity 1 added to the existing Item");
+		existingItems.Quantity += 1;
+
 	}
 	else
 	{
-		shoppingListItems.Add(new StockItemView
+		shoppingListItems.Add(new ShoppingItemsView
 		{
-			StockItemID = productID,
-			Description = productInDatabase.Description,
-			SellingPrice = productInDatabase.SellingPrice
+			ProductID = productID,
+			ProductName = productInDatabase.Description,
+			Quantity = productInDatabase.QuantityOnHand > 0 ? 1 : throw new ArgumentException("We don't have this item in the inventory"),
+			UnitPrice = productInDatabase.SellingPrice,
 		});
 	}
 	return shoppingListItems;
 
 }
 
+
+//public List<ShoppingItemsView> AddorEditShoppingLists (int quantity)
 
 
 
@@ -310,13 +321,14 @@ public class CategoryView
 
 public class ShoppingItemsView
 {
-	public string ProductID { get; set; }
+	public int ProductID { get; set; }
 	public string ProductName { get; set; }
-	public int Quantity { get; set; }
-	public decimal Unitrice { get; set; }
+	public int Quantity { get; set; } = 1;
+	public decimal UnitPrice { get; set; }
+	public decimal Subtotal => UnitPrice * Quantity;
 }
 
-private List<StockItemView> shoppingListItems = new List<StockItemView>();
+private List<ShoppingItemsView> shoppingListItems = new List<ShoppingItemsView>();
 //see category
 //select a category
 //see items
