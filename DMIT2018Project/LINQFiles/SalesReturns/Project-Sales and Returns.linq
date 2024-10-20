@@ -33,15 +33,16 @@ void Main()
 	TestGetItemsByCategoryID(4).Dump("Items of categoryID 4");   //users or employees selecting certain category for display
 
 	//TestAddToShoppingLists
-	TestAddToShoppingLists(34).Dump("Add the first item to empty list");
-	TestAddToShoppingLists(34).Dump("duplicate +1 quantity");
-	TestAddToShoppingLists(82).Dump("Add another item");
-	TestAddToShoppingLists(83).Dump("Add another item");
-	TestAddToShoppingLists(84).Dump("Add another item");
-	TestAddToShoppingLists(5580).Dump("Add another item");
-	TestAddToShoppingLists(5580).Dump("Duplicate Item Quantity +1");
-	TestAddToShoppingLists(5580).Dump("can't order more than the quantity on hand"); //quantity on hand for id5580 is 2 in the database.
-	TestAddToShoppingLists(24).Dump("No such product in the database");
+	TestAddToShoppingLists(34,1).Dump("Add the first item to empty list");
+	TestAddToShoppingLists(34,2).Dump("duplicate item,quantity added to the existing item");
+	TestAddToShoppingLists(82,1).Dump("Add another item");
+	TestAddToShoppingLists(83,1).Dump("Add another item");
+	TestAddToShoppingLists(84,1).Dump("Add another item");
+	TestAddToShoppingLists(5580,1).Dump("Add another item");
+	TestAddToShoppingLists(5580,1).Dump("Duplicate Item Quantity added to the existing item");
+	TestAddToShoppingLists(5580,1).Dump("can't order more than the quantity on hand"); //quantity on hand for id5580 is 2 in the database.
+	TestAddToShoppingLists(24,0).Dump("Qty input should be greater than 0");
+	TestAddToShoppingLists(24,1).Dump("-----------No such product in the database");
 
 
 	//TestEditQuantity of shoppingLists
@@ -54,9 +55,9 @@ void Main()
 	TestRemovingItem(0).Dump("productID can't be zero");
 	TestRemovingItem(-3).Dump("no negative number for productID");
 	TestRemovingItem(5580).Dump("The result of removing");
-	
 
-	//shoppingListItems.Dump("hey");
+
+	shoppingListItems.Dump("The Current Shopping ListItem");
 	//(Required)SaveSales
 
 
@@ -149,11 +150,11 @@ public List<StockItemView> TestGetItemsByCategoryID(int categoryID)
 
 }
 
-public List<ShoppingItemsView> TestAddToShoppingLists(int productID)
+public List<ShoppingItemsView> TestAddToShoppingLists(int productID, int qty)
 {
 	try
 	{
-		return AddToShoppingLists(productID);
+		return AddToShoppingLists(productID, qty);
 	}
 
 	#region catch all exceptions (define later)
@@ -339,7 +340,7 @@ public List<StockItemView> GetItemsByCategoryID(int categoryID)
 }
 
 
-public List<ShoppingItemsView> AddToShoppingLists(int productID)
+public List<ShoppingItemsView> AddToShoppingLists(int productID, int qty)
 {
 
 	if (productID == null)
@@ -352,6 +353,11 @@ public List<ShoppingItemsView> AddToShoppingLists(int productID)
 		throw new ArgumentException("Product ID should be greater than 0");
 	}
 
+	if (qty <= 0)
+	{
+		throw new ArgumentNullException("Quantity should be greater than 0");
+	}
+
 	var productInDatabase = StockItems.Where(x => x.StockItemID == productID).FirstOrDefault();
 
 	if (productInDatabase == null)
@@ -360,16 +366,23 @@ public List<ShoppingItemsView> AddToShoppingLists(int productID)
 	}
 
 
+	if (productInDatabase.QuantityOnHand <= 0)
+	{
+		throw new ArgumentException("We don't have quantity on hand for this item now.");
+	}
+
+	
+
 	var existingItems = shoppingListItems.Where(x => x.ProductID == productID).FirstOrDefault();
 	if (existingItems != null)
 	{
-		if (existingItems.Quantity == productInDatabase.QuantityOnHand)
+		if (existingItems.Quantity + qty > productInDatabase.QuantityOnHand)
 		{
 			throw new ArgumentException("You can't order more than the quantity on hand.");
 		}
 
-		Console.WriteLine("Duplicate item is already in the cart! Quantity 1 added to the existing Item");
-		existingItems.Quantity += 1;
+		Console.WriteLine("Duplicate item is already in the cart! quantity added to the existing Item");
+		existingItems.Quantity += qty;
 
 	}
 	else
@@ -378,7 +391,8 @@ public List<ShoppingItemsView> AddToShoppingLists(int productID)
 		{
 			ProductID = productID,
 			ProductName = productInDatabase.Description,
-			Quantity = productInDatabase.QuantityOnHand > 0 ? 1 : throw new ArgumentException("We don't have this item in the inventory"),
+			//Quantity = productInDatabase.QuantityOnHand > 0 ? 1 : throw new ArgumentException("We don't have this item in the inventory"),
+			Quantity = qty,
 			UnitPrice = productInDatabase.SellingPrice,
 		});
 	}
