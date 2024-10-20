@@ -32,17 +32,36 @@ void Main()
 	TestGetItemsByCategoryID(0).Dump("invalid categoryid");   //users or employees selecting certain category for display
 	TestGetItemsByCategoryID(4).Dump("Items of categoryID 4");   //users or employees selecting certain category for display
 
-
-	TestAddToShoppingLists(34).Dump();
-	TestAddToShoppingLists(5580).Dump();
+	//TestAddToShoppingLists
+	TestAddToShoppingLists(34).Dump("Add the first item to empty list");
+	TestAddToShoppingLists(34).Dump("duplicate +1 quantity");
+	TestAddToShoppingLists(82).Dump("Add another item");
+	TestAddToShoppingLists(83).Dump("Add another item");
+	TestAddToShoppingLists(84).Dump("Add another item");
+	TestAddToShoppingLists(5580).Dump("Add another item");
 	TestAddToShoppingLists(5580).Dump("Duplicate Item Quantity +1");
 	TestAddToShoppingLists(5580).Dump("can't order more than the quantity on hand"); //quantity on hand for id5580 is 2 in the database.
 	TestAddToShoppingLists(24).Dump("No such product in the database");
 
 
+	//TestEditQuantity of shoppingLists
+	TestEditQuantity(5580, 0).Dump("Quantity should be greater than 0");
+	TestEditQuantity(5580, 5).Dump("Quantity for Edit cannot be over Quantity On Hand");
+	TestEditQuantity(5580, 1).Dump("Successfuly Edit For Quantity");
+
+
+	//Test for Removing Item from the cart
+	TestRemovingItem(0).Dump("productID can't be zero");
+	TestRemovingItem(-3).Dump("no negative number for productID");
+	TestRemovingItem(5580).Dump("The result of removing");
+	
+
+	//shoppingListItems.Dump("hey");
 	//(Required)SaveSales
 
+
 	//(Required)GetSaleRefund
+
 
 	//(Required)and SaveRefund
 
@@ -135,6 +154,77 @@ public List<ShoppingItemsView> TestAddToShoppingLists(int productID)
 	try
 	{
 		return AddToShoppingLists(productID);
+	}
+
+	#region catch all exceptions (define later)
+
+	catch (AggregateException ex)
+	{
+		foreach (var error in ex.InnerExceptions)
+		{
+			error.Message.Dump();
+
+		}
+	}
+
+	catch (ArgumentNullException ex)
+	{
+		GetInnerException(ex).Message.Dump();
+	}
+
+	catch (Exception ex)
+	{
+		GetInnerException(ex).Message.Dump();
+	}
+
+	#endregion
+	return null; //Ensures a valid return value even on failure
+
+}
+
+
+public List<ShoppingItemsView> TestEditQuantity(int productID, int qty)
+{
+	try
+	{
+		return EditQuantity(productID, qty);
+	}
+
+	#region catch all exceptions (define later)
+
+	catch (AggregateException ex)
+	{
+		foreach (var error in ex.InnerExceptions)
+		{
+			error.Message.Dump();
+
+		}
+	}
+
+	catch (ArgumentNullException ex)
+	{
+		GetInnerException(ex).Message.Dump();
+	}
+
+	catch (Exception ex)
+	{
+		GetInnerException(ex).Message.Dump();
+	}
+
+	#endregion
+	return null; //Ensures a valid return value even on failure
+
+}
+
+
+
+
+
+public List<ShoppingItemsView> TestRemovingItem(int productID)
+{
+	try
+	{
+		return RemovingItem(productID);
 	}
 
 	#region catch all exceptions (define later)
@@ -277,7 +367,7 @@ public List<ShoppingItemsView> AddToShoppingLists(int productID)
 		{
 			throw new ArgumentException("You can't order more than the quantity on hand.");
 		}
-		
+
 		Console.WriteLine("Duplicate item is already in the cart! Quantity 1 added to the existing Item");
 		existingItems.Quantity += 1;
 
@@ -301,6 +391,65 @@ public List<ShoppingItemsView> AddToShoppingLists(int productID)
 
 
 
+public List<ShoppingItemsView> EditQuantity(int productID, int qty)
+{
+	if (qty <= 0)
+	{
+		throw new ArgumentException("quantity should be greater than 0");
+	}
+
+	var productInDatabase = StockItems.Where(x => x.StockItemID == productID).FirstOrDefault();
+
+	if (productInDatabase == null)
+	{
+		throw new ArgumentException("There is no such item in the record.");
+	}
+
+	var productInShoppingLists = shoppingListItems.Where(x => x.ProductID == productID).FirstOrDefault();
+	if (productInShoppingLists == null)
+	{
+		throw new ArgumentNullException("there is no item with the productID in the shopping list item.");
+	}
+
+
+	if (qty > productInDatabase.QuantityOnHand)
+	{
+		throw new ArgumentException($"You can't order more than the quantity on hand. Quantity on hand : {productInDatabase.QuantityOnHand}.");
+	}
+
+	productInShoppingLists.Quantity = qty;
+	return shoppingListItems;
+}
+
+
+
+
+public List<ShoppingItemsView> RemovingItem(int productID)
+{
+	if (productID == null)
+	{
+		throw new ArgumentNullException("Product ID should be supplied.");
+	}
+
+	if (productID <= 0)
+	{
+		throw new ArgumentNullException("Invalid ProductID for removing.");
+	}
+
+	var productInShoppingLists = shoppingListItems.Where(x => x.ProductID == productID).FirstOrDefault();
+
+	if (productInShoppingLists == null)
+	{
+		throw new ArgumentNullException($"No item with the productID:{productID} in the shopping list");
+	}
+	else
+	{
+		shoppingListItems.Remove(productInShoppingLists);
+	}
+
+
+	return shoppingListItems;
+}
 
 
 #endregion
