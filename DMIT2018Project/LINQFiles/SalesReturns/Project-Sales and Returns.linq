@@ -33,16 +33,16 @@ void Main()
 	TestGetItemsByCategoryID(4).Dump("Items of categoryID 4");   //users or employees selecting certain category for display
 
 	//TestAddToShoppingLists
-	TestAddToShoppingLists(34,1).Dump("Add the first item to empty list");
-	TestAddToShoppingLists(34,2).Dump("duplicate item,quantity added to the existing item");
-	TestAddToShoppingLists(82,1).Dump("Add another item");
-	TestAddToShoppingLists(83,1).Dump("Add another item");
-	TestAddToShoppingLists(84,1).Dump("Add another item");
-	TestAddToShoppingLists(5580,1).Dump("Add another item");
-	TestAddToShoppingLists(5580,1).Dump("Duplicate Item Quantity added to the existing item");
-	TestAddToShoppingLists(5580,1).Dump("can't order more than the quantity on hand"); //quantity on hand for id5580 is 2 in the database.
-	TestAddToShoppingLists(24,0).Dump("Qty input should be greater than 0");
-	TestAddToShoppingLists(24,1).Dump("-----------No such product in the database");
+	TestAddToShoppingLists(34, 1).Dump("Add the first item to empty list");
+	TestAddToShoppingLists(34, 2).Dump("duplicate item,quantity added to the existing item");
+	TestAddToShoppingLists(82, 1).Dump("Add another item");
+	TestAddToShoppingLists(83, 1).Dump("Add another item");
+	TestAddToShoppingLists(84, 1).Dump("Add another item");
+	TestAddToShoppingLists(5580, 1).Dump("Add another item");
+	TestAddToShoppingLists(5580, 1).Dump("Duplicate Item Quantity added to the existing item");
+	TestAddToShoppingLists(5580, 1).Dump("can't order more than the quantity on hand"); //quantity on hand for id5580 is 2 in the database.
+	TestAddToShoppingLists(24, 0).Dump("Qty input should be greater than 0");
+	TestAddToShoppingLists(24, 1).Dump("-----------No such product in the database");
 
 
 	//TestEditQuantity of shoppingLists
@@ -59,6 +59,10 @@ void Main()
 
 	shoppingListItems.Dump("The Current Shopping ListItem");
 	//(Required)SaveSales
+
+
+	var saleID = AddSales(shoppingListItems, 1, "", "M", 0); //new record saleID is always 0.
+	Console.WriteLine($"{saleID} is new sale ID.");
 
 
 	//(Required)GetSaleRefund
@@ -371,7 +375,7 @@ public List<ShoppingItemsView> AddToShoppingLists(int productID, int qty)
 		throw new ArgumentException("We don't have quantity on hand for this item now.");
 	}
 
-	
+
 
 	var existingItems = shoppingListItems.Where(x => x.ProductID == productID).FirstOrDefault();
 	if (existingItems != null)
@@ -466,6 +470,126 @@ public List<ShoppingItemsView> RemovingItem(int productID)
 }
 
 
+
+//Separating Add and Edit..to make it simpler for now.
+
+public int AddSales(List<ShoppingItemsView> shoppingListItems, int employeeID, string couponIDValue, string paymentType, int saleID)
+{
+	#region Business Logic and Parameter Exceptions
+	//    create a list<Exception> to contain all discovered errors
+	List<Exception> errorList = new List<Exception>();
+	//  Business Rules
+	//    These are processing rules that need to be satisfied
+	//        for valid data
+	//    rule:    shoppingItemView cannot be null
+	if (shoppingListItems == null)
+	{
+		throw new ArgumentNullException("No shopping list was supplied");
+	}
+
+	if (shoppingListItems.Count == 0)
+	{
+		throw new ArgumentNullException("There should be at least one shopping item in the list.");
+	}
+
+	//    rule:    Only Associates or StoreManagers can do sales and returns
+	if (employeeID == null)
+	{
+		throw new ArgumentNullException("Employee ID should be supplied");
+	}
+
+	var checkPosition = Employees
+								.Where(x => x.EmployeeID == employeeID)
+								.FirstOrDefault();
+
+	if (checkPosition == null) //checking matching employee
+	{
+		throw new ArgumentException($"There is no matching employee with ID {employeeID}.");
+	}
+
+	if (!(checkPosition.Position.Description == "Store Manager" || checkPosition.Position.Description == "Associate"))
+	{
+		throw new ArgumentException("This Employee is not allowed to do sales and returns transaction.");
+	}
+
+	int discount = 0; //this is discount percentage, default to 0.
+
+	var matchingCoupon = Coupons
+								.Where(x => x.CouponIDValue == couponIDValue)
+								.FirstOrDefault();
+
+	if (!string.IsNullOrWhiteSpace(couponIDValue)) //only check coupon when it is supplied.
+	{
+		if (matchingCoupon == null)
+		{
+			throw new ArgumentException($"There is no matching coupon of {couponIDValue}.");
+		}
+		else
+		{
+			discount = matchingCoupon.CouponDiscount;
+		}
+	}
+	
+	#endregion
+
+	// Retrieve the invoice from the database or create a new one if it doesn't exist.
+	Sales sale = Sales
+					.Where(x => x.SaleID == saleID)
+					.FirstOrDefault();
+	// If the invoice doesn't exist, initialize it.
+	if (sale == null)
+	{
+		sale = new Sales();
+		sale.SaleDate = DateTime.Now; // Set the current date for new invoices.
+		sale.SaleDetails = new();
+	}
+	//else
+	//{
+	//This is for refund after sales probably........not coded yet.
+	//// Update the date for existing invoices.
+	//invoice.InvoiceDate = invoiceView.InvoiceDate;
+	//}
+	// Map attributes from the view model to the data model.
+	sale.EmployeeID = employeeID;
+	sale.PaymentType = paymentType;
+	sale.CouponID = matchingCoupon == null ? null : matchingCoupon.CouponID == null ? null : matchingCoupon.CouponID;
+
+	sale.SubTotal = shoppingListItems.Sum(a => a.Subtotal);
+	sale.TaxAmount = sale.SubTotal * 0.05m;
+
+	decimal Total = sale.SubTotal + sale.TaxAmount - discount; //this is for UI
+	Console.WriteLine($"{Total} is total price."); //just for checking
+
+	// Process each line item in the provided view model.
+
+//StockItem should be changed before save changes. Not coded yet.
+//StockItem should be changed before save changes. Not coded yet.
+//StockItem should be changed before save changes. Not coded yet.
+//StockItem should be changed before save changes. Not coded yet.
+//StockItem should be changed before save changes. Not coded yet.
+//StockItem should be changed before save changes. Not coded yet.
+
+
+	foreach (var item in shoppingListItems)
+	{
+		SaleDetails saleDetails = new();
+		saleDetails.StockItemID = item.ProductID;
+		saleDetails.SellingPrice = item.UnitPrice;
+		saleDetails.Quantity = item.Quantity;
+		sale.SaleDetails.Add(saleDetails);
+	}
+
+		Sales.Add(sale);
+		
+		SaveChanges();
+	
+	return sale.SaleID;
+	
+	
+}
+
+
+
 #endregion
 
 // This region includes the view models used to
@@ -515,5 +639,18 @@ public class StockItemView
 	//public bool RemoveFromViewFlag { get; set; }
 }
 
+
+public class SalesView
+{
+
+	public int SaleID { get; set; }
+	public DateTime SaleDate { get; set; }
+	public string PaymentType { get; set; }
+	public int EmployeeID { get; set; }
+	public decimal TaxAmount { get; set; }
+	public decimal SubTotal { get; set; }
+	public int CouponID { get; set; }
+
+}
 
 #endregion
