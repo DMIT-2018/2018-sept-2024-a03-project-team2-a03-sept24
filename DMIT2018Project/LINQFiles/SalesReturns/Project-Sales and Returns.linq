@@ -562,6 +562,9 @@ public int AddSales(List<ShoppingItemsView> shoppingListItems, int employeeID, s
 
 	// Process each line item in the provided view model.
 
+//Discount(when it is not null) also needs to be applied for the object before save changes.
+//or??Discount is only used for UI to show total, and sale object doesn't even have 'total' property(field). so maybe that's all for discount to do. needs to think about this.
+
 //StockItem should be changed before save changes. Not coded yet.
 //StockItem should be changed before save changes. Not coded yet.
 //StockItem should be changed before save changes. Not coded yet.
